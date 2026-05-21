@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute, queue,
     style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
     terminal::{self, ClearType},
@@ -48,7 +48,7 @@ fn run_select(out: &mut impl Write, items: &[String], prompt: &str) -> Result<us
 
     loop {
         match event::read()? {
-            Event::Key(key) => match (key.code, key.modifiers) {
+            Event::Key(key) if key.kind == KeyEventKind::Press => match (key.code, key.modifiers) {
                 (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
                     if sel > 0 {
                         sel -= 1;
