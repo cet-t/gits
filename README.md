@@ -27,7 +27,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 ## 使い方
 
-```
+```sh
 gits <subcommand> [options]
 ```
 

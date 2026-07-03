@@ -1,8 +1,8 @@
 use crate::{error::Error, git, selector};
 
-pub fn run(extra: &[String]) -> Result<i32, Error> {
+pub fn run(extra: &[String], key_codes: &selector::KeyCodes) -> Result<i32, Error> {
     let branches = git::branches()?;
-    let idx = selector::select(&branches, "select branch to rebase onto")?;
+    let idx = selector::select_with_keymap(&branches, "select branch to rebase onto", key_codes)?;
     let branch = branches[idx].clone();
 
     let mut args = vec!["rebase".to_owned(), branch];

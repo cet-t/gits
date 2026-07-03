@@ -1,4 +1,5 @@
 mod cmd;
+mod config;
 mod error;
 mod git;
 mod selector;
@@ -83,7 +84,12 @@ enum Cmd {
 
 fn main() {
     let cli = Cli::parse();
-    match run(cli) {
+    let key_codes = config::Config::load()
+        .ok()
+        .and_then(|c| c.keymap)
+        .map(|km| selector::KeyCodes::from_config(&km))
+        .unwrap_or_default();
+    match run(cli, &key_codes) {
         Ok(code) => std::process::exit(code),
         Err(Error::Cancelled) => std::process::exit(130),
         Err(e) => {
@@ -93,13 +99,13 @@ fn main() {
     }
 }
 
-fn run(cli: Cli) -> Result<i32, Error> {
+fn run(cli: Cli, key_codes: &selector::KeyCodes) -> Result<i32, Error> {
     match cli.command {
-        Cmd::Show { args } => cmd::show::run(&args),
-        Cmd::Diff { print, base, args } => cmd::diff::run(print, base.as_deref(), &args),
-        Cmd::Switch { args } => cmd::switch::run(&args),
-        Cmd::Merge { args } => cmd::merge::run(&args),
-        Cmd::Rebase { args } => cmd::rebase::run(&args),
+        Cmd::Show { args } => cmd::show::run(&args, key_codes),
+        Cmd::Diff { print, base, args } => cmd::diff::run(print, base.as_deref(), &args, key_codes),
+        Cmd::Switch { args } => cmd::switch::run(&args, key_codes),
+        Cmd::Merge { args } => cmd::merge::run(&args, key_codes),
+        Cmd::Rebase { args } => cmd::rebase::run(&args, key_codes),
         Cmd::Commit => cmd::commit::run(),
         Cmd::Branch => cmd::branch::run(),
     }
