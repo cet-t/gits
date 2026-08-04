@@ -88,6 +88,8 @@ fn run_select(
     execute!(out, cursor::Hide)?;
     render(out, items, sel, off, visible, prompt)?;
 
+    drain_events();
+
     loop {
         match event::read()? {
             Event::Key(key) if key.kind == KeyEventKind::Press => {
@@ -155,6 +157,12 @@ fn run_select(
     }
 }
 
+fn drain_events() {
+    while event::poll(std::time::Duration::ZERO).ok().unwrap_or(false) {
+        let _ = event::read();
+    }
+}
+
 fn bindings_contain(bindings: &[(KeyCode, KeyModifiers)], target: (KeyCode, KeyModifiers)) -> bool {
     bindings.iter().any(|&b| b == target)
 }
@@ -170,7 +178,7 @@ fn render(
     queue!(
         out,
         SetForegroundColor(Color::DarkYellow),
-        Print(format!("  {prompt}\r\n")),
+        Print(format!("  {prompt}\n")),
         ResetColor,
     )?;
 
@@ -180,12 +188,12 @@ fn render(
                 out,
                 SetForegroundColor(Color::Cyan),
                 SetAttribute(Attribute::Bold),
-                Print(format!("> {}\r\n", items[i])),
+                Print(format!("> {}\n", items[i])),
                 SetAttribute(Attribute::Reset),
                 ResetColor,
             )?;
         } else {
-            queue!(out, Print(format!("  {}\r\n", items[i])))?;
+            queue!(out, Print(format!("  {}\n", items[i])))?;
         }
     }
 
