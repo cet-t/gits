@@ -1,12 +1,7 @@
-use std::path::PathBuf;
-
-use anyhow::Result;
-use serde::Deserialize;
-
 const CONFIG_NAME: &str = "config.toml";
 const CONFIG_DIR: &str = "gits";
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, ::serde::Deserialize)]
 pub struct Keymap {
     pub up: Vec<String>,
     pub down: Vec<String>,
@@ -14,13 +9,13 @@ pub struct Keymap {
     pub cancel: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, ::serde::Deserialize)]
 pub struct Config {
     pub keymap: Option<Keymap>,
 }
 
 impl Config {
-    pub fn load() -> Result<Self> {
+    pub fn load() -> ::anyhow::Result<Self> {
         let path = config_path()?;
         let content = std::fs::read_to_string(path)?;
         let config: Self = toml::from_str(&content)?;
@@ -28,10 +23,9 @@ impl Config {
     }
 }
 
-fn config_path() -> Result<PathBuf> {
-    let mut path = dirs::config_dir().ok_or_else(|| {
-        anyhow::anyhow!("could not locate config directory")
-    })?;
+fn config_path() -> ::anyhow::Result<std::path::PathBuf> {
+    let mut path =
+        dirs::config_dir().ok_or_else(|| anyhow::anyhow!("could not locate config directory"))?;
     path.push(CONFIG_DIR);
     path.push(CONFIG_NAME);
     Ok(path)

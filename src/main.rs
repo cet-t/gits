@@ -6,7 +6,7 @@ mod selector;
 
 use clap::{Parser, Subcommand};
 
-use error::Error;
+use crate::error::{GitsError, GitsResult};
 
 #[derive(Parser)]
 #[command(
@@ -91,7 +91,7 @@ fn main() {
         .unwrap_or_default();
     match run(cli, &key_codes) {
         Ok(code) => std::process::exit(code),
-        Err(Error::Cancelled) => std::process::exit(130),
+        Err(GitsError::Cancelled) => std::process::exit(130),
         Err(e) => {
             eprintln!("gits: {e}");
             std::process::exit(1);
@@ -99,7 +99,7 @@ fn main() {
     }
 }
 
-fn run(cli: Cli, key_codes: &selector::KeyCodes) -> Result<i32, Error> {
+fn run(cli: Cli, key_codes: &selector::KeyCodes) -> GitsResult<i32> {
     match cli.command {
         Cmd::Show { args } => cmd::show::run(&args, key_codes),
         Cmd::Diff { print, base, args } => cmd::diff::run(print, base.as_deref(), &args, key_codes),

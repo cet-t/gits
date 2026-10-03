@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::io::Write;
 
 use crossterm::{
     cursor,
@@ -8,10 +8,10 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 
-use crate::config;
-use crate::error::Error;
+use crate::error::GitsError;
+use crate::{config, error::GitsResult};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct KeyCodes {
     pub up_keys: Vec<(KeyCode, KeyModifiers)>,
     pub down_keys: Vec<(KeyCode, KeyModifiers)>,
@@ -37,27 +37,20 @@ impl KeyCodes {
     }
 }
 
-impl Default for KeyCodes {
-    fn default() -> Self {
-        Self {
-            up_keys: vec![],
-            down_keys: vec![],
-            confirm_keys: vec![],
-            cancel_keys: vec![],
-        }
-    }
-}
-
-pub fn select(items: &[String], prompt: &str) -> Result<usize, Error> {
+pub fn select(items: &[String], prompt: &str) -> GitsResult<usize> {
     select_with_keymap(items, prompt, &KeyCodes::default())
 }
 
-pub fn select_with_keymap(items: &[String], prompt: &str, key_codes: &KeyCodes) -> Result<usize, Error> {
+pub fn select_with_keymap(
+    items: &[String],
+    prompt: &str,
+    key_codes: &KeyCodes,
+) -> GitsResult<usize> {
     if items.is_empty() {
-        return Err(Error::Empty);
+        return Err(GitsError::Empty);
     }
 
-    let stderr = io::stderr();
+    let stderr = std::io::stderr();
     let mut out = stderr.lock();
 
     terminal::enable_raw_mode()?;
@@ -74,7 +67,7 @@ fn run_select(
     items: &[String],
     prompt: &str,
     key_codes: &KeyCodes,
-) -> Result<usize, Error> {
+) -> GitsResult<usize> {
     let (_, rows) = terminal::size()?;
     let mut visible = (rows as usize).saturating_sub(2).max(1).min(items.len());
 
@@ -97,15 +90,24 @@ fn run_select(
 
                 let is_up = bindings_contain(&key_codes.up_keys, matched)
                     || (key_codes.up_keys.is_empty()
-                        && matches!(matched, (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE)));
+                        && matches!(
+                            matched,
+                            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE)
+                        ));
 
                 let is_down = bindings_contain(&key_codes.down_keys, matched)
                     || (key_codes.down_keys.is_empty()
-                        && matches!(matched, (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE)));
+                        && matches!(
+                            matched,
+                            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE)
+                        ));
 
                 let is_confirm = bindings_contain(&key_codes.confirm_keys, matched)
                     || (key_codes.confirm_keys.is_empty()
-                        && matches!(matched, (KeyCode::Enter, _) | (KeyCode::Char('l'), KeyModifiers::NONE)));
+                        && matches!(
+                            matched,
+                            (KeyCode::Enter, _) | (KeyCode::Char('l'), KeyModifiers::NONE)
+                        ));
 
                 let is_cancel = bindings_contain(&key_codes.cancel_keys, matched)
                     || (key_codes.cancel_keys.is_empty()
@@ -140,11 +142,14 @@ fn run_select(
                     return Ok(sel);
                 } else if is_cancel {
                     erase(out, visible + 1)?;
-                    return Err(Error::Cancelled);
+                    return Err(GitsError::Cancelled);
                 }
             }
             Event::Resize(_, new_rows) => {
-                let new_visible = (new_rows as usize).saturating_sub(2).max(1).min(items.len());
+                let new_visible = (new_rows as usize)
+                    .saturating_sub(2)
+                    .max(1)
+                    .min(items.len());
                 erase(out, visible + 1)?;
                 visible = new_visible;
                 if sel >= off + visible {
@@ -164,7 +169,7 @@ fn drain_events() {
 }
 
 fn bindings_contain(bindings: &[(KeyCode, KeyModifiers)], target: (KeyCode, KeyModifiers)) -> bool {
-    bindings.iter().any(|&b| b == target)
+    bindings.contains(&target)
 }
 
 fn render(
@@ -174,7 +179,7 @@ fn render(
     off: usize,
     visible: usize,
     prompt: &str,
-) -> Result<(), Error> {
+) -> GitsResult<()> {
     queue!(
         out,
         SetForegroundColor(Color::DarkYellow),
@@ -182,6 +187,7 @@ fn render(
         ResetColor,
     )?;
 
+    #[allow(clippy::needless_range_loop)]
     for i in off..(off + visible).min(items.len()) {
         if i == sel {
             queue!(
@@ -201,7 +207,7 @@ fn render(
     Ok(())
 }
 
-fn erase(out: &mut impl Write, lines: usize) -> Result<(), Error> {
+fn erase(out: &mut impl Write, lines: usize) -> GitsResult<()> {
     if lines == 0 {
         return Ok(());
     }

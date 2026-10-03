@@ -1,6 +1,11 @@
-use crate::{error::Error, git, selector};
+use crate::{error::GitsResult, git, selector};
 
-pub fn run(print: bool, base: Option<&str>, extra: &[String], key_codes: &selector::KeyCodes) -> Result<i32, Error> {
+pub fn run(
+    print: bool,
+    base: Option<&str>,
+    extra: &[String],
+    key_codes: &selector::KeyCodes,
+) -> GitsResult<i32> {
     let lines = git::log_lines()?;
 
     let base_hash = match base {
@@ -22,6 +27,6 @@ pub fn run(print: bool, base: Option<&str>, extra: &[String], key_codes: &select
     let mut args = vec!["diff".to_owned(), base_hash, target_hash];
     args.extend_from_slice(extra);
 
-    let status = git::exec(&args)?;
+    let status = git::execute(&args)?;
     Ok(status.code().unwrap_or(1))
 }

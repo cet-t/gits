@@ -1,7 +1,5 @@
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum Error {
+#[derive(Debug, ::thiserror::Error)]
+pub enum GitsError {
     #[error("git failed (exit {code}): {stderr}")]
     GitFailed { code: i32, stderr: String },
 
@@ -17,3 +15,5 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
+
+pub type GitsResult<T> = Result<T, self::GitsError>;
