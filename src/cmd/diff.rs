@@ -2,14 +2,14 @@ use crate::{error::GitsResult, git, selector};
 
 pub fn run(
     print: bool,
-    base: Option<&str>,
+    base: Option<String>,
     extra: &[String],
     key_codes: &selector::KeyCodes,
 ) -> GitsResult<i32> {
     let lines = git::log_lines()?;
 
     let base_hash = match base {
-        Some(b) => b.to_owned(),
+        Some(b) => b,
         None => {
             let idx = selector::select_with_keymap(&lines, "select base commit", key_codes)?;
             git::hash_from_line(&lines[idx]).to_owned()
