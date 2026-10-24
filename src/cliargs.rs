@@ -1,7 +1,8 @@
 #[derive(::clap::Parser)]
 #[command(
     name = "gits",
-    about = "Git argument selector — interactive ref picker for git commands",
+    version,
+    about,
     disable_help_subcommand = true,
     override_usage = "gits <command> [options]"
 )]
