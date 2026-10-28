@@ -1,45 +1,45 @@
 # gits
 
-インタラクティブなコミット・ブランチセレクタ付き git ラッパー。
-よく使う git 操作をキーボードだけで素早く実行できます。
+A git wrapper with interactive commit and branch selectors.
+Run common git operations quickly, using only the keyboard.
 
-## インストール
+## Installation
 
 ```sh
 cargo install --path .
 ```
 
-`~/.cargo/bin` にパスが通っていれば `gits <subcommand>` で使えます。
+If `~/.cargo/bin` is on your `PATH`, you can run it as `gits <subcommand>`.
 
-### パスの確認
+### Checking your PATH
 
 ```sh
-# パスが通っているか確認
+# Check that gits is on your PATH
 gits --help
 ```
 
-通っていない場合は `~/.cargo/bin` を `PATH` に追加してください。
+If it is not, add `~/.cargo/bin` to your `PATH`.
 
 ```sh
-# .bashrc / .zshrc に追記
+# Add to .bashrc / .zshrc
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-## 使い方
+## Usage
 
 ```sh
 gits <subcommand> [options]
 ```
 
-セレクタは `j`/`k` または矢印キーで移動、`Enter` または `l` で確定、`Esc` / `h` / `Ctrl-C` でキャンセルします。
+In the selector, move with `j`/`k` or the arrow keys, confirm with `Enter` or `l`, and cancel with `Esc` / `h` / `q` / `Ctrl-C`.
 
 ---
 
-## サブコマンド
+## Subcommands
 
-### `show` — コミット内容を表示
+### `show` — Show a commit
 
-コミット一覧からインタラクティブに選択して `git show` を実行します。
+Interactively select a commit from the list and run `git show` on it.
 
 ```sh
 gits show
@@ -47,47 +47,47 @@ gits show --stat
 gits show -p --name-only
 ```
 
-### `diff` — コミット間の差分を表示
+### `diff` — Show changes between commits
 
-ベースとターゲットの 2 つのコミットを順に選択して `git diff` を実行します。
+Select a base commit and then a target commit, and run `git diff` between them.
 
 ```sh
 gits diff
 gits diff --stat
-gits diff --base HEAD         # ベースを固定してターゲットだけ選択
+gits diff --base HEAD         # Fix the base and select only the target
 ```
 
-### `switch` — ブランチを切り替え
+### `switch` — Switch branches
 
-ブランチ一覧から選択して `git switch` を実行します。
+Select a branch from the list and run `git switch`.
 
 ```sh
 gits switch
 gits switch --detach
 ```
 
-### `merge` — ブランチをマージ
+### `merge` — Merge a branch
 
-ブランチ一覧から選択して `git merge` を実行します。
+Select a branch from the list and run `git merge`.
 
 ```sh
 gits merge
 gits merge --no-ff
 ```
 
-### `rebase` — ブランチをリベース
+### `rebase` — Rebase onto a branch
 
-ブランチ一覧から選択して `git rebase` を実行します。
+Select a branch from the list and run `git rebase`.
 
 ```sh
 gits rebase
-gits rebase --interactive     # 選択したブランチで git rebase -i を実行
+gits rebase --interactive     # Run git rebase -i with the selected branch
 ```
 
-### `commit` — コミットハッシュを出力
+### `commit` — Print a commit hash
 
-コミット一覧から選択してハッシュを標準出力に出力します。
-他のコマンドと組み合わせて使います。
+Select a commit from the list and print its hash to standard output.
+Use it in combination with other commands.
 
 ```sh
 git rebase -i $(gits commit)
@@ -95,9 +95,9 @@ git diff $(gits commit) HEAD
 git cherry-pick $(gits commit)
 ```
 
-### `branch` — ブランチ名を出力
+### `branch` — Print a branch name
 
-ブランチ一覧から選択してブランチ名を標準出力に出力します。
+Select a branch from the list and print its name to standard output.
 
 ```sh
 git switch $(gits branch)
@@ -107,11 +107,35 @@ git merge --no-ff $(gits branch)
 
 ---
 
-## キーバインド
+## Key bindings
 
-| キー                   | 動作                         |
-| ---------------------- | ---------------------------- |
-| `j` / `↓`              | 次の項目へ                   |
-| `k` / `↑`              | 前の項目へ                   |
-| `Enter` / `l`          | 選択して確定                 |
-| `Esc` / `h` / `Ctrl-C` | キャンセル（終了コード 130） |
+| Key                          | Action                 |
+| ---------------------------- | ---------------------- |
+| `j` / `↓`                    | Next item              |
+| `k` / `↑`                    | Previous item          |
+| `Enter` / `l`                | Confirm selection      |
+| `Esc` / `h` / `q` / `Ctrl-C` | Cancel (exit code 130) |
+
+### Custom key bindings
+
+Key bindings can be changed in `gits/config.toml` under your config directory:
+
+| OS      | Path                                                  |
+| ------- | ----------------------------------------------------- |
+| Linux   | `~/.config/gits/config.toml`                          |
+| macOS   | `~/Library/Application Support/gits/config.toml`      |
+| Windows | `%APPDATA%\gits\config.toml`                          |
+
+```toml
+[keymap]
+up = ["k", "up", "ctrl-p"]
+down = ["j", "down", "ctrl-n"]
+confirm = ["enter", "l"]
+cancel = ["esc", "q", "ctrl-c"]
+```
+
+- All four of `up`, `down`, `confirm` and `cancel` must be present. If any is missing or the file cannot be parsed, the defaults are used for everything.
+- A non-empty list replaces that action's defaults. An empty list (`[]`) keeps the defaults.
+- Keys are either a single character or one of `up`, `down`, `left`, `right`, `enter`, `esc`, `space`, `tab`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`.
+- Prefix keys with `ctrl-`, `alt-`, `shift-` or `cmd-` (or `+` instead of `-`, e.g. `ctrl+n`) to add modifiers.
+- Unrecognized keys are ignored.
