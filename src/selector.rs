@@ -8,6 +8,7 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 
+use crate::ansi;
 use crate::error::GitsError;
 use crate::{config, error::GitsResult};
 
@@ -35,10 +36,6 @@ impl KeyCodes {
             cancel_keys: parse(&keymap.cancel),
         }
     }
-}
-
-pub fn select(items: &[String], prompt: &str) -> GitsResult<usize> {
-    select_with_keymap(items, prompt, &KeyCodes::default())
 }
 
 pub fn select_with_keymap(
@@ -198,16 +195,22 @@ fn render(
     #[allow(clippy::needless_range_loop)]
     for i in off..(off + visible).min(items.len()) {
         if i == sel {
+            // Drop the item's own colors so the whole row shows the highlight.
             queue!(
                 out,
                 SetForegroundColor(Color::Cyan),
                 SetAttribute(Attribute::Bold),
-                Print(format!("> {}", items[i])),
+                Print(format!("> {}", ansi::strip(&items[i]))),
                 SetAttribute(Attribute::Reset),
                 ResetColor,
             )?;
         } else {
-            queue!(out, Print(format!("  {}", items[i])))?;
+            queue!(
+                out,
+                Print(format!("  {}", items[i])),
+                SetAttribute(Attribute::Reset),
+                ResetColor,
+            )?;
         }
         queue!(out, terminal::Clear(ClearType::UntilNewLine), Print("\r\n"))?;
     }

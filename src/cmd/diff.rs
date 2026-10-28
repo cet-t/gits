@@ -12,12 +12,12 @@ pub fn run(
         Some(b) => b,
         None => {
             let idx = selector::select_with_keymap(&lines, "select base commit", key_codes)?;
-            git::hash_from_line(&lines[idx]).to_owned()
+            git::hash_from_line(&lines[idx])
         }
     };
 
     let idx = selector::select_with_keymap(&lines, "select target commit", key_codes)?;
-    let target_hash = git::hash_from_line(&lines[idx]).to_owned();
+    let target_hash = git::hash_from_line(&lines[idx]);
 
     if print {
         println!("{base_hash} {target_hash}");

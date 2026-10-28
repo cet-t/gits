@@ -16,8 +16,8 @@ pub fn run(command: Command, key_codes: &selector::KeyCodes) -> crate::error::Gi
         Command::Switch { args } => cmd::switch::run(&args, key_codes),
         Command::Merge { args } => cmd::merge::run(&args, key_codes),
         Command::Rebase { args } => cmd::rebase::run(&args, key_codes),
-        Command::Commit => cmd::commit::run(),
-        Command::Branch => cmd::branch::run(),
+        Command::Commit => cmd::commit::run(key_codes),
+        Command::Branch => cmd::branch::run(key_codes),
         Command::Other(args) => cmd::other::run(&args),
     }
 }

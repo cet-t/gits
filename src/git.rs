@@ -1,5 +1,6 @@
 use std::process::{Command, Stdio};
 
+use crate::ansi;
 use crate::error::{GitsError, GitsResult};
 
 pub fn output(args: &[&str]) -> GitsResult<String> {
@@ -27,8 +28,9 @@ pub fn execute(args: &[String]) -> GitsResult<std::process::ExitStatus> {
         .map_err(GitsError::GitNotFound)
 }
 
+/// Log lines colored the same way as `git log` (hash, HEAD, branches, tags).
 pub fn log_lines() -> GitsResult<Vec<String>> {
-    let raw = output(&["log", "--oneline", "--decorate"])?;
+    let raw = output(&["log", "--oneline", "--decorate", "--color=always"])?;
     Ok(raw
         .lines()
         .filter(|l| !l.is_empty())
@@ -37,8 +39,21 @@ pub fn log_lines() -> GitsResult<Vec<String>> {
 }
 
 /// Extract the commit hash (first whitespace-delimited token) from a log line.
-pub fn hash_from_line(line: &str) -> &str {
-    line.split_whitespace().next().unwrap_or(line)
+pub fn hash_from_line(line: &str) -> String {
+    let plain = ansi::strip(line);
+    plain.split_whitespace().next().unwrap_or_default().to_owned()
+}
+
+/// Color branch names like local branches in `git log --decorate`,
+/// honoring `color.decorate.branch`.
+pub fn colored_branches(branches: &[String]) -> Vec<String> {
+    let color = output(&["config", "--get-color", "color.decorate.branch", "bold green"])
+        .unwrap_or_default();
+    let reset = output(&["config", "--get-color", "", "reset"]).unwrap_or_default();
+    branches
+        .iter()
+        .map(|b| format!("{color}{b}{reset}"))
+        .collect()
 }
 
 pub fn branches() -> Result<Vec<String>, GitsError> {
