@@ -50,8 +50,8 @@ pub fn select_with_keymap(
         return Err(GitsError::Empty);
     }
 
-    let stderr = std::io::stderr();
-    let mut out = stderr.lock();
+    // Stderr is unbuffered; buffer so each frame reaches the terminal in one write.
+    let mut out = std::io::BufWriter::new(std::io::stderr().lock());
 
     terminal::enable_raw_mode()?;
     let result = run_select(&mut out, items, prompt, key_codes);
@@ -79,7 +79,7 @@ fn run_select(
     }
 
     execute!(out, cursor::Hide)?;
-    render(out, items, sel, off, visible, prompt)?;
+    render(out, items, sel, off, visible, prompt, 0)?;
 
     drain_events();
 
@@ -125,8 +125,7 @@ fn run_select(
                         if sel < off {
                             off = sel;
                         }
-                        erase(out, visible + 1)?;
-                        render(out, items, sel, off, visible, prompt)?;
+                        render(out, items, sel, off, visible, prompt, visible + 1)?;
                     }
                 } else if is_down {
                     if sel + 1 < items.len() {
@@ -134,8 +133,7 @@ fn run_select(
                         if sel >= off + visible {
                             off = sel + 1 - visible;
                         }
-                        erase(out, visible + 1)?;
-                        render(out, items, sel, off, visible, prompt)?;
+                        render(out, items, sel, off, visible, prompt, visible + 1)?;
                     }
                 } else if is_confirm {
                     erase(out, visible + 1)?;
@@ -150,12 +148,12 @@ fn run_select(
                     .saturating_sub(2)
                     .max(1)
                     .min(items.len());
-                erase(out, visible + 1)?;
+                let prev_lines = visible + 1;
                 visible = new_visible;
                 if sel >= off + visible {
                     off = sel + 1 - visible;
                 }
-                render(out, items, sel, off, visible, prompt)?;
+                render(out, items, sel, off, visible, prompt, prev_lines)?;
             }
             _ => {}
         }
@@ -172,6 +170,9 @@ fn bindings_contain(bindings: &[(KeyCode, KeyModifiers)], target: (KeyCode, KeyM
     bindings.contains(&target)
 }
 
+/// Draws the list over the previous frame (`prev_lines` lines above the cursor)
+/// in a single flush. Lines are overwritten in place rather than cleared first,
+/// so no blank frame is ever shown.
 fn render(
     out: &mut impl Write,
     items: &[String],
@@ -179,12 +180,20 @@ fn render(
     off: usize,
     visible: usize,
     prompt: &str,
+    prev_lines: usize,
 ) -> GitsResult<()> {
+    queue!(out, terminal::BeginSynchronizedUpdate)?;
+    if prev_lines > 0 {
+        queue!(out, cursor::MoveUp(prev_lines as u16))?;
+    }
     queue!(
         out,
+        cursor::MoveToColumn(0),
         SetForegroundColor(Color::DarkYellow),
-        Print(format!("  {prompt}\n")),
+        Print(format!("  {prompt}")),
         ResetColor,
+        terminal::Clear(ClearType::UntilNewLine),
+        Print("\r\n"),
     )?;
 
     #[allow(clippy::needless_range_loop)]
@@ -194,15 +203,22 @@ fn render(
                 out,
                 SetForegroundColor(Color::Cyan),
                 SetAttribute(Attribute::Bold),
-                Print(format!("> {}\n", items[i])),
+                Print(format!("> {}", items[i])),
                 SetAttribute(Attribute::Reset),
                 ResetColor,
             )?;
         } else {
-            queue!(out, Print(format!("  {}\n", items[i])))?;
+            queue!(out, Print(format!("  {}", items[i])))?;
         }
+        queue!(out, terminal::Clear(ClearType::UntilNewLine), Print("\r\n"))?;
     }
 
+    // Remove leftover lines when the frame shrank (e.g. after a resize).
+    queue!(
+        out,
+        terminal::Clear(ClearType::FromCursorDown),
+        terminal::EndSynchronizedUpdate,
+    )?;
     out.flush()?;
     Ok(())
 }
@@ -211,15 +227,12 @@ fn erase(out: &mut impl Write, lines: usize) -> GitsResult<()> {
     if lines == 0 {
         return Ok(());
     }
-    queue!(out, cursor::MoveUp(lines as u16))?;
-    for _ in 0..lines {
-        queue!(
-            out,
-            terminal::Clear(ClearType::CurrentLine),
-            cursor::MoveDown(1),
-        )?;
-    }
-    queue!(out, cursor::MoveUp(lines as u16))?;
+    queue!(
+        out,
+        cursor::MoveUp(lines as u16),
+        cursor::MoveToColumn(0),
+        terminal::Clear(ClearType::FromCursorDown),
+    )?;
     out.flush()?;
     Ok(())
 }
