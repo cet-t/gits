@@ -56,7 +56,7 @@ pub fn select_with_keymap(
     terminal::enable_raw_mode()?;
     let result = run_select(&mut out, items, prompt, key_codes);
 
-    let _ = execute!(out, cursor::Show);
+    let _ = execute!(out, terminal::EnableLineWrap, cursor::Show);
     terminal::disable_raw_mode()?;
 
     result
@@ -74,14 +74,13 @@ fn run_select(
     let mut sel = 0usize;
     let mut off = 0usize;
 
-    while event::poll(std::time::Duration::ZERO)? {
-        event::read()?;
-    }
-
-    execute!(out, cursor::Hide)?;
-    render(out, items, sel, off, visible, prompt, 0)?;
-
+    // Discard input left over from launching the command, before the list is shown.
     drain_events();
+
+    // Long items are cut at the right edge instead of wrapping, so each item
+    // occupies exactly one line and the redraw line count stays correct.
+    execute!(out, cursor::Hide, terminal::DisableLineWrap)?;
+    render(out, items, sel, off, visible, prompt, 0)?;
 
     loop {
         match event::read()? {
