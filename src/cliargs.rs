@@ -4,15 +4,24 @@
     version,
     about,
     disable_help_subcommand = true,
+    arg_required_else_help = true,
     override_usage = "gits <command> [options]"
 )]
 pub struct Cli {
+    /// Print the path of the config file and exit
+    #[arg(long)]
+    pub config_path: bool,
+
+    /// Parse the config file, print it with how each entry is applied, and exit
+    #[arg(long, conflicts_with = "config_path")]
+    pub config: bool,
+
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 impl Cli {
-    pub fn command(&self) -> self::Command {
+    pub fn command(&self) -> Option<self::Command> {
         self.command.clone()
     }
 }

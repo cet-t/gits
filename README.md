@@ -126,6 +126,8 @@ Key bindings can be changed in `gits/config.toml` under your config directory:
 | macOS   | `~/Library/Application Support/gits/config.toml`      |
 | Windows | `%APPDATA%\gits\config.toml`                          |
 
+Run `gits --config-path` to print the path for your environment, and `gits --config` to check how the file is parsed: it marks actions using the defaults, unrecognized keys and unknown fields, and reports parse errors.
+
 ```toml
 [keymap]
 up = ["k", "up", "ctrl-p"]

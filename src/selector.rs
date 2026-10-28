@@ -24,9 +24,7 @@ impl KeyCodes {
     pub fn from_config(keymap: &config::Keymap) -> Self {
         let parse = |keys: &[String]| {
             keys.iter()
-                .map(|s| s.trim().to_lowercase())
-                .filter(|s| !s.is_empty())
-                .filter_map(|s| parse_key(&s))
+                .filter_map(|s| parse_binding(s))
                 .collect::<Vec<_>>()
         };
         Self {
@@ -237,6 +235,15 @@ fn erase(out: &mut impl Write, lines: usize) -> GitsResult<()> {
     )?;
     out.flush()?;
     Ok(())
+}
+
+/// Parse one key binding from the config, e.g. `"ctrl-n"` (case-insensitive).
+pub fn parse_binding(raw: &str) -> Option<(KeyCode, KeyModifiers)> {
+    let s = raw.trim().to_lowercase();
+    if s.is_empty() {
+        return None;
+    }
+    parse_key(&s)
 }
 
 fn parse_key(raw: &str) -> Option<(KeyCode, KeyModifiers)> {
