@@ -1,7 +1,9 @@
 const CONFIG_NAME: &str = "config.toml";
 const CONFIG_DIR: &str = "gits";
 
-#[derive(Debug, Clone, ::serde::Deserialize)]
+// Omitted actions deserialize to an empty list, which falls back to the default keys.
+#[derive(Debug, Clone, Default, ::serde::Deserialize)]
+#[serde(default)]
 pub struct Keymap {
     pub up: Vec<String>,
     pub down: Vec<String>,

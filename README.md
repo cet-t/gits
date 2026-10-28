@@ -134,8 +134,8 @@ confirm = ["enter", "l"]
 cancel = ["esc", "q", "ctrl-c"]
 ```
 
-- All four of `up`, `down`, `confirm` and `cancel` must be present. If any is missing or the file cannot be parsed, the defaults are used for everything.
-- A non-empty list replaces that action's defaults. An empty list (`[]`) keeps the defaults.
+- A non-empty list replaces that action's defaults. An omitted action or an empty list (`[]`) keeps the defaults.
+- If the file cannot be parsed, the defaults are used for everything.
 - Keys are either a single character or one of `up`, `down`, `left`, `right`, `enter`, `esc`, `space`, `tab`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`.
 - Prefix keys with `ctrl-`, `alt-`, `shift-` or `cmd-` (or `+` instead of `-`, e.g. `ctrl+n`) to add modifiers.
 - Unrecognized keys are ignored.
