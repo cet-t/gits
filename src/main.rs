@@ -14,7 +14,11 @@ fn main() {
     let cli = Cli::parse();
 
     if cli.config_path || cli.config {
-        let flag = if cli.config { "--config" } else { "--config-path" };
+        let flag = if cli.config {
+            "--config"
+        } else {
+            "--config-path"
+        };
         if cli.command().is_some() {
             <Cli as CommandFactory>::command()
                 .error(

@@ -30,56 +30,34 @@ impl Config {
 pub fn describe() -> ::anyhow::Result<String> {
     let path = config_path()?;
     let content = match std::fs::read_to_string(&path) {
-        Ok(content) => content,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            anyhow::bail!("no config file at {} (default keys are used)", path.display())
-        }
+        Ok(content) => Some(content),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
         Err(e) => anyhow::bail!("{}: {e}", path.display()),
     };
-    render(&path, &content)
+    render(&path, content.as_deref())
 }
 
-fn render(path: &std::path::Path, content: &str) -> ::anyhow::Result<String> {
+/// `content` is `None` when the config file does not exist.
+fn render(path: &std::path::Path, content: Option<&str>) -> ::anyhow::Result<String> {
+    let Some(content) = content else {
+        let mut out = format!("# {} (not found; default keys are used)\n", path.display());
+        render_keymap(&mut out, &Keymap::default());
+        return Ok(out);
+    };
+
     let config: Config = toml::from_str(content)
         .map_err(|e| anyhow::anyhow!("{} (default keys are used)\n{e}", path.display()))?;
     let table: toml::Table = toml::from_str(content)?;
 
     let mut out = format!("# {}\n", path.display());
-    for key in table.keys().filter(|k| *k != "keymap") {
+    for key in table.keys().filter(|&k| k != "keymap") {
         out.push_str(&format!("# unknown field: {key} (ignored)\n"));
     }
-
-    let Some(keymap) = config.keymap else {
+    if config.keymap.is_none() {
         out.push_str("# no [keymap] section; default keys are used\n");
-        return Ok(out);
-    };
-
-    out.push_str("\n[keymap]\n");
-    let actions = [
-        ("up", &keymap.up),
-        ("down", &keymap.down),
-        ("confirm", &keymap.confirm),
-        ("cancel", &keymap.cancel),
-    ];
-    for (name, keys) in actions {
-        let (valid, invalid): (Vec<&String>, Vec<&String>) = keys
-            .iter()
-            .partition(|k| crate::selector::parse_binding(k).is_some());
-
-        let mut notes = Vec::new();
-        if valid.is_empty() {
-            notes.push("default".to_owned());
-        }
-        if !invalid.is_empty() {
-            notes.push(format!("ignored: {}", quote_list(&invalid)));
-        }
-
-        out.push_str(&format!("{name} = [{}]", quote_list(&valid)));
-        if !notes.is_empty() {
-            out.push_str(&format!(" # {}", notes.join(", ")));
-        }
-        out.push('\n');
     }
+
+    render_keymap(&mut out, &config.keymap.unwrap_or_default());
 
     let known = ["up", "down", "confirm", "cancel"];
     if let Some(toml::Value::Table(km)) = table.get("keymap") {
@@ -91,7 +69,43 @@ fn render(path: &std::path::Path, content: &str) -> ::anyhow::Result<String> {
     Ok(out)
 }
 
-fn quote_list(keys: &[&String]) -> String {
+/// Render `[keymap]`, showing the default keys for actions that fall back to them.
+fn render_keymap(out: &mut String, keymap: &Keymap) {
+    use crate::selector::DEFAULT_KEYS;
+
+    out.push_str("\n[keymap]\n");
+    let actions = [
+        ("up", &keymap.up, DEFAULT_KEYS.up),
+        ("down", &keymap.down, DEFAULT_KEYS.down),
+        ("confirm", &keymap.confirm, DEFAULT_KEYS.confirm),
+        ("cancel", &keymap.cancel, DEFAULT_KEYS.cancel),
+    ];
+    for (name, keys, defaults) in actions {
+        let (valid, invalid): (Vec<&str>, Vec<&str>) = keys
+            .iter()
+            .map(String::as_str)
+            .partition(|k| crate::selector::parse_binding(k).is_some());
+
+        let mut notes = Vec::new();
+        let shown = if valid.is_empty() {
+            notes.push("default".to_owned());
+            defaults.to_vec()
+        } else {
+            valid
+        };
+        if !invalid.is_empty() {
+            notes.push(format!("ignored: {}", quote_list(&invalid)));
+        }
+
+        out.push_str(&format!("{name} = [{}]", quote_list(&shown)));
+        if !notes.is_empty() {
+            out.push_str(&format!(" # {}", notes.join(", ")));
+        }
+        out.push('\n');
+    }
+}
+
+fn quote_list(keys: &[&str]) -> String {
     keys.iter()
         .map(|k| format!("{k:?}"))
         .collect::<Vec<_>>()
@@ -103,7 +117,7 @@ mod tests {
     use super::render;
 
     fn run(content: &str) -> String {
-        render(std::path::Path::new("config.toml"), content).unwrap()
+        render(std::path::Path::new("config.toml"), Some(content)).unwrap()
     }
 
     #[test]
@@ -115,10 +129,39 @@ mod tests {
              \n\
              [keymap]\n\
              up = [\"k\", \"ctrl-p\"] # ignored: \"bogus\"\n\
-             down = [] # default\n\
-             confirm = [] # default\n\
-             cancel = [] # default\n"
+             down = [\"j\", \"down\"] # default\n\
+             confirm = [\"enter\", \"l\"] # default\n\
+             cancel = [\"esc\", \"h\", \"q\", \"ctrl-c\"] # default\n"
         );
+    }
+
+    #[test]
+    fn shows_defaults_when_file_is_missing() {
+        let out = render(std::path::Path::new("config.toml"), None).unwrap();
+        assert_eq!(
+            out,
+            "# config.toml (not found; default keys are used)\n\
+             \n\
+             [keymap]\n\
+             up = [\"k\", \"up\"] # default\n\
+             down = [\"j\", \"down\"] # default\n\
+             confirm = [\"enter\", \"l\"] # default\n\
+             cancel = [\"esc\", \"h\", \"q\", \"ctrl-c\"] # default\n"
+        );
+    }
+
+    #[test]
+    fn default_keys_are_valid_bindings() {
+        use crate::selector::{DEFAULT_KEYS, parse_binding};
+        let all = [
+            DEFAULT_KEYS.up,
+            DEFAULT_KEYS.down,
+            DEFAULT_KEYS.confirm,
+            DEFAULT_KEYS.cancel,
+        ];
+        for key in all.concat() {
+            assert!(parse_binding(key).is_some(), "{key}");
+        }
     }
 
     #[test]
@@ -135,8 +178,11 @@ mod tests {
 
     #[test]
     fn reports_parse_errors() {
-        let err = render(std::path::Path::new("config.toml"), "[keymap]\nup = \"k\"\n")
-            .unwrap_err();
+        let err = render(
+            std::path::Path::new("config.toml"),
+            Some("[keymap]\nup = \"k\"\n"),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("default keys are used"));
     }
 }

@@ -20,6 +20,22 @@ pub struct KeyCodes {
     pub cancel_keys: Vec<(KeyCode, KeyModifiers)>,
 }
 
+pub struct DefaultKeys {
+    pub up: &'static [&'static str],
+    pub down: &'static [&'static str],
+    pub confirm: &'static [&'static str],
+    pub cancel: &'static [&'static str],
+}
+
+/// Config-style names of the fallback keys matched in `run_select`.
+/// Keep in sync with the `matches!` defaults there.
+pub const DEFAULT_KEYS: DefaultKeys = DefaultKeys {
+    up: &["k", "up"],
+    down: &["j", "down"],
+    confirm: &["enter", "l"],
+    cancel: &["esc", "h", "q", "ctrl-c"],
+};
+
 impl KeyCodes {
     pub fn from_config(keymap: &config::Keymap) -> Self {
         let parse = |keys: &[String]| {
